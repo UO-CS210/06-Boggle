@@ -3,12 +3,12 @@
 [Boggle](https://en.wikipedia.org/wiki/Boggle) is a word game
 invented in 1972. Players compete to see how many words they can 
 form from the letters displayed on the top of 16 dice in a 4x4 
-pattern. Variations with 3x3 ("Boggle junior"), 5x5, and 6x6 
-("Super Big Boggle") grids exist, 
-but we will build a solver for the original 4x4 version sometimes 
-called "Classic Boggle".  
+pattern ("Classic Boggle"). Other variants are 9 tiles in a 3x3 
+pattern ("Boggle junior") and larger 
+5x5 or 6x6 grids ("Super Big Boggle"). Our solver will use a board
+whose size is defined in a configuration file, `config.py`. 
 
-![Sample board](img/sample-board.jpeg)
+![Sample board](img/sample-board.jpeg "Photo of a Boggle board")
 
 Our solver will make one simplification:  Modern Boggle dice 
 include one face with the letter pair "QU".  Like earlier Boggle 
@@ -16,10 +16,16 @@ games, we will treat "Q" as an ordinary letter.
 
 ## Interaction
 
-Input to our Boggle solver will a sequence of 16 letters, which we 
-will treat as four rows of four letters.  The output will be a list 
-of words that can be formed from those letters according to Boggle 
-rules, and a score.  The interaction will look like this: 
+Input to our Boggle solver will be a sequence of letters.  We will 
+divide it into rows and letter depending on the size of the board.
+For example, if the board has four rows and four columns ("Classic 
+Boggle"), we will break a string of 16 letters into four rows of 
+four letters.  If the board has three rows of three columns, we will 
+expect an input string of length 9.  If the input string is not the
+correct length, we will reject it (print an error message and quit). 
+
+The minimal interaction (with optional displays disabled in 
+`config.py`) will look like this for the 4x4 board shown in the photo. 
 
 ```commandline
 Boggle board letters (or 'return' to exit)> oydliexennoktati
@@ -36,12 +42,59 @@ including diagonal as well as horizontal and vertical moves, but
 each die may be used only once in each word.  For example, here is 
 how the word "LEONINE" is found in the play above: 
 
-![LEONINE path in "oydliexennoktati"](img/sample-path.jpg)
+![LEONINE path in "oydliexennoktati"](img/sample-path.jpg 
+"Image shows path through the board.")
 
-In addition to the textual interaction, our Boggle solver will 
-display its progress graphically.  
+It is easier to see how a word is found on a smaller board.  Let's 
+consider a 3x3 "Boggle Junior" board with contents
 
-![Snapshot of boggler display](img/play-snapshot.png)
+```text
+a b c
+d e f
+g h i
+```
+Starting from row 0, column 2, we can find the letter "b". We can 
+look for words beginning with "b".  If we look to the right, we find 
+the letter "c".  No words begin with "b" followed by "c", so we 
+would give up on that path.  If we look diagonally right and long, 
+we find "f", and again we would give up on that path because no 
+words begin with "b" followed by "f".  If we look down (by adding 
+one to the row index) we find the letter "e".  There are words that 
+begin with "b" followed by "e", so we will try to extend this path. 
+Looking left (subtracting one from the column index) we find a "d", 
+and since "bed" is a word in our list of acceptable words, we would 
+add "bed" to the list of words we have found.  We would then try to 
+extend this path farther, but the letters adjacent to "d" and not 
+already used are "a", "e", and "g", and "h", and we would find that 
+our word list does not include anything starting with "b", "e", "d" 
+followed by any of those letters.  
+  
+
+In addition to the basic interaction, our Boggle solver can  
+display its progress graphically or in text, depending on settings
+in `config.py`: 
+
+```python
+GRAPHIC_VIEW = True
+TEXT_VIEW = True
+# Text view verbosity
+TEXT_VIEW_EACH_MOVE = False  # Show prefix at each letter
+TEXT_VIEW_EACH_BACK = False  # Show prefix when backing up
+TEXT_VIEW_EACH_WORD = True  # Show full board with selected word
+```
+
+![Snapshot of boggler display](img/play-snapshot.png 
+"The graphical display")
+
+The textual display shows letters on the current path in upper case: 
+
+```text
+Board: 
+a B c
+D E f
+g h i
+```
+
 
 ## Two-stage project
 
@@ -72,7 +125,8 @@ memory to use many times.
 ### Getting a start
 
 We will start in the usual way, creating a program file called 
-`boggler.py`.  
+`boggler.py`.  The `test_it` function disables the text display 
+while running doctests. 
 
 ```python
 """Boggler:  Boggle game solver. CS 210, Fall 2022.
@@ -80,19 +134,29 @@ Your name here.
 Credits: TBD
 """
 import doctest
+import config
+
+def test_it():
+    """A little extra work to keep text display from
+    interfering with doctests.
+    """
+    saved_flag = config.TEXT_VIEW
+    config.TEXT_VIEW = False
+    doctest.testmod(verbose=True)
+    config.TEXT_VIEW = saved_flag
+
 
 def main():
     pass
 
 if __name__ == "__main__":
-    doctest.testmod()
-    print("Doctests complete")
+    test_it()
     main()
 ```
 
 Again we will need access to an external word list file, and we 
-don't want to hard-code the file path in our program, so we'll 
-create a separate `config.py` file with the file path: 
+don't want to hard-code the file path in our program.  It is 
+specified in the `config.py` file. 
 
 ```python
 """"Configuration of Boggle player"""
@@ -101,8 +165,8 @@ create a separate `config.py` file with the file path:
 DICT_PATH = "data/dict.txt"
 ```
 
-Import `config` in `boggler.py` the same way we have imported 
-configuration paths in prior projects. 
+For debugging you may prefer to use `data/shortdict.txt`.  The full 
+word list `data/dict.txt` contains approximately 40,000 words. 
 
 Internally the word list will be a list of strings.  We will create 
 a function to obtain that list of strings from an external word list 
@@ -115,7 +179,7 @@ def read_dict(path: str) -> list[str]:
     """Returns ordered list of valid, normalized words from dictionary.
 
     >>> read_dict("data/shortdict.txt")
-    ['ALPHA', 'BETA', 'DELTA', 'GAMMA', 'OMEGA']
+    ['ALPHA', 'BED', 'BETA', 'DELTA', 'GAMMA', 'OMEGA']
     """
 ```
 
@@ -128,14 +192,17 @@ alpha
 omega
 big-time
 dEltA
+bed
 gamma
 is
 ```
 
 ### Filtering the word list
 
-The list of words returned by `read_dict` is _filtered_ to contain 
-only words that are valid in Boggle:  They must contain at least 
+The list of words returned by `read_dict` should be _filtered_ to 
+contain 
+only words that are valid in Boggle:  They must contain at 
+least 
 three letters, and they must contain only letters.  For this we 
 will write a short supporting function `allowed`:
 
@@ -154,18 +221,23 @@ def allowed(s: str) -> bool:
     """
 ```
 
-Although we are solving only the classic version of Boggle for now, 
-we want to avoid _magic numbers_ that would make it harder to adapt 
-our program to other versions in the future.  Therefor the our 
+We want to avoid _magic numbers_ that would make it harder to adapt 
+our program to other versions in the future.  Therefor our 
 function `allowed` should refer to a _symbolic constant_ `MIN_WORD` 
-for the minimum allowed length of a Boggle word.  We will place the 
-definition of `MIN_WORD` near the beginning of the program file, 
-just after the `import`s.  
+for the minimum allowed length of a Boggle word.  We will place this
+in `config.py` along with other constants that define a particular 
+version of Boggle. 
 
 ```python
 # Boggle rules
 MIN_WORD = 3   # A word must be at least 3 characters to count
 ```
+
+Aside:  You may note that some `doctest` test cases 
+are still dependent on 
+the settings in `config.py`.  In a subsequent academic term we will 
+adopt a different unit testing framework that is more flexible in 
+this respect. 
 
 To check that a word contains only letters, we can use the string 
 method `isalpha`, e.g., `s.isalpha()`.  
@@ -206,8 +278,7 @@ returning it.
 ### Checkpoint
 
 At this point you should have three functions, `allowed`, 
-`normalize`, and `read_dict`.  You also have a symbolic constant 
-`MIN_WORD` as a global variable near the beginning of the program. 
+`normalize`, and `read_dict`.  
 
 ### Searching the word list
 
@@ -246,7 +317,12 @@ MATCH = "Match"     # Exact match to a valid word
 PREFIX = "Prefix"   # Not an exact match, but a prefix (keep searching!)
 ```
 
-In addition to make our code more readable, using these symbolic 
+Unlike the definition of `MIN_WORD` and several other symbolic 
+constants, these belong in our `boggler.py` program and not in
+`config.py` because they are arbitrary values used only internally 
+within a single module.
+
+In addition to making our code more readable, using these symbolic 
 constants will prevent us from creating mysterious bugs with typos. 
 An error message from Python complaining of an undefined variable 
 (because we misspelled it) is vastly preferable to unanticipated 
@@ -403,7 +479,8 @@ This concludes stage 1.
 The heart of our Boggle solver will be a recursive search
 of the Boggle board, starting from each cell. Before we can
 write that, we will need a board.  We will obtain the letters for
-the board from the user.  Typing exactly 16 letters is not easy.
+the board from the user.  Typing exactly the right
+number of letters is not easy.
 We should give the user another chance if they mistype it the first 
 time.  
 
@@ -430,11 +507,8 @@ import sys
 We need to check that all the characters in the input are letters.  
 We already have a function `allowed` for that.  We also need to be 
 sure the input is the right length.  Once again, we do _not_ want 
-magic numbers sprinkled around our code, so we will create additional
-symbolic constants and use them instead.  Since we anticipate we 
-will also need the dimensions of the board when we are searching it,
-we might as well define the row and column length as well as the 
-total number of characters on the board: 
+magic numbers sprinkled around our code.  Our configuration file 
+already contains a specification of the board size: 
 
 ```python
 # Board dimensions
@@ -444,7 +518,8 @@ BOARD_SIZE = N_ROWS * N_COLS
 ```
 
 Now we are ready to write a function `get_board_string` which either 
-returns a valid string of 16 letters or ends the program.  
+returns a valid string of the right number of  letters or ends the 
+program.  
 
 ```python
 def get_board_letters() -> str:
@@ -462,14 +537,15 @@ input validation loop before, I'll provide it:
 ```python
     while True:
         board_string = input("Boggle board letters (or 'return' to exit)> ")
-        if allowed(board_string) and len(board_string) == BOARD_SIZE:
+        if allowed(board_string) and len(board_string) == config.BOARD_SIZE:
             return board_string
         elif len(board_string) == 0:
             print(f"OK, sorry it didn't work out")
             sys.exit(0)
         else:
             print(f'"{board_string}" is not a valid Boggle board')
-            print(f'Please enter exactly 16 letters (or empty to quit)')
+            print(f'Please enter exactly {config.BOARD_SIZE} letters (or empty to quit)')
+    return normalize(board_string)
 ```
 
 The argument 0 to `sys.exit` means "this is fine." 
@@ -483,26 +559,37 @@ When `get_board_letters` returns a valid list of 16 letters, we can
 use the `normalize` function we already wrote to make it consistent 
 with the way we are storing the word list.  Then we will need to 
 convert that string into a board, represented as a list of lists of 
-strings. 
+strings.  We will not normalize the string of letters within 
+`unpack_board`.  We want it to have just one, simple job, unpacking 
+the string into a lists of lists.  
+
 
 ```python
-def unpack_board(letters: str) -> list[list[str]]:
+def unpack_board(letters: str, rows=config.N_ROWS) -> list[list[str]]:
     """Unpack a single string of characters into
-    a matrix of individual characters, N_ROWS x N_COLS.
+    a square matrix of individual characters, N_ROWS x N_ROWS.
 
-    >>> unpack_board("abcdefghijklmnop")
+    >>> unpack_board("abcdefghi", rows=3)
+    [['a', 'b', 'c'], ['d', 'e', 'f'], ['g', 'h', 'i']]
+
+    >>> unpack_board("abcdefghijklmnop", rows=4)
     [['a', 'b', 'c', 'd'], ['e', 'f', 'g', 'h'], ['i', 'j', 'k', 'l'], ['m', 'n', 'o', 'p']]
     """
 ```
-Note that we are not normalizing the string of letters within 
-`unpack_board`.  We want it to have just one, simple job, unpacking 
-the string into a lists of lists.  
+
+This function header uses a _keyword argument_ `rows`
+that can be omitted when the function is called. Usually we
+will omit the `rows` argument and accept the default,
+which is defined in the configuration file.  However, we can
+specify it in the doctests so that our test cases are not
+dependent on those configuration choices. 
+
 
 How can we place the right element of `letters` in each
 element of the result?  There are at least two possible approaches. 
 
 - The index in letters for i,j of the result
-  is i * N_ROWS + j. 
+  is i * rows + j. 
 - We can keep a separate index for letters, adding one each
   we append a letter to a row. 
 
@@ -513,8 +600,10 @@ second is a little clearer.  Take your pick.
 ### A view of the board
 
 Although we can solve Boggle puzzles much faster without graphics, 
-it is fast enough and more enjoyable to watch the board as it is 
-solved. We'll use the provided `board_view` module. 
+a display of the solving process may be enjoyable and could
+be useful in debugging.  We'll use 
+the provided `board_view` module, which can drive a
+graphical view, a textual view, or both. 
 
 ```python
 import board_view
@@ -577,7 +666,7 @@ def boggle_solve(board: list[list[str]], words: list[str]) -> list[str]:
     the boggle board in all 8 directions.  Returns sorted list without
     duplicates.
 
-    >>> board = unpack_board("PLXXMEXXXAXXSXXX")
+    >>> board = unpack_board("PLXXMEXXXAXXSXXX", rows=4)
     >>> words = read_dict("data/dict.txt")
     >>> boggle_solve(board, words)
     ['AMP', 'AMPLE', 'AXE', 'AXLE', 'ELM', 'EXAM', 'LEA', 'MAX', 'PEA', 'PLEA', 'SAME', 'SAMPLE', 'SAX']
@@ -587,21 +676,22 @@ def boggle_solve(board: list[list[str]], words: list[str]) -> list[str]:
     def solve(row: int, col: int, prefix: str):
         """One solution step"""
         pass  # for now 
-    
+
     # Look for solutions starting from each board position
-    for row_i in range(N_ROWS):
-        for col_i in range(N_COLS):
+    for row_i in range(config.N_ROWS):
+        for col_i in range(config.N_COLS):
             solve(row_i, col_i, "")
 
     # Return solutions without duplicates, in sorted order
     solutions = list(set(solutions))
     return sorted(solutions)
+
 ```
 
 The reason we are placing `solve` inside `boggle_solve` is to give 
 `solve` access to the arguments `board`, `words`, and the variable
 `solutions` without passing them as arguments.  We avoid global 
-variables (except symbolic constants), but in this case the our 
+variables (except symbolic constants), but in this case our 
 `solve` function would be unwieldy with so many arguments.  It would 
 be difficult when reading the code to know if we had passed all the 
 right arguments in the right order.  Making `board`, `words`, and 
@@ -656,11 +746,29 @@ What happens next depends on the result that search returned.  If it
 returned `NOPE` (not a word, and cannot be extended to form a word), 
 then once again we just return.  
 
+At this point we know that we are going to explore farther along 
+this path.  Let's "wrap" that exploration in code to record
+this step. 
+
+```python
+        board[row][col] = IN_USE  # Prevent reusing
+        board_view.mark_occupied(row, col)
+        
+        ## further exploration goes here
+
+        # Restore
+        board[row][col] = letter
+        board_view.mark_unoccupied(row, col)
+```
+
+Now let's fill in that exploration.
 If the status is `MATCH`, then we append the newly found word (in 
-`prefix`) to our list of solutions: 
+`prefix`) to our list of solutions.  We also want to trigger
+our display(s) to show the path to the solution.
 
 ```python
             solutions.append(prefix)
+            board_view.celebrate(prefix)
 ```
 
 We will also consider that any word _might_ be extended to form 
@@ -675,12 +783,7 @@ same position may be used in _other_ words.
 ```python
         if status == MATCH or status == PREFIX:
             # Keep searching
-            board[row][col] = IN_USE  # Prevent reusing
-            board_view.mark_occupied(row, col)
             # *** Recursive calls go here ***
-            # Restore letter for further search
-            board[row][col] = letter
-            board_view.mark_unoccupied(row, col)
 ```
 
 Finally we need to fill in the 8 recursive calls for trying further 
