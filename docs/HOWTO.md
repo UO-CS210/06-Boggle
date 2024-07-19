@@ -407,11 +407,11 @@ outlined in this pseudocode:
 If we set to `mid` to the mid-point between `low` and `high` each 
 time through the loop, each iteration of the loop will either find 
 the word or cut the portion of the list under consideration in half.
-We see that above in the search for "LEONTINE", as the portion of 
+We see that above in the search for "LEONINE", as the portion of 
 the word list under consideration is cut from 39,391 words to 19,695 
 words, then 9,847 words, then 4,923, 2,461, 1,230, 615, 307, 153, 76,
 38, 19, 9, 4, and finally just 2 words.  It took just 14 comparisons 
-to find "LEONTINE" in the list of 39,391 words.  
+to find "LEONINE" in the list of 39,391 words.  
 
 How do we know that the maximum number of loop iterations required 
 is 16? Because 
